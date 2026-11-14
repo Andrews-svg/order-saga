@@ -73,6 +73,27 @@ services:
       retries: 10
       start_period: 60s
 
+  product-service:
+    build:
+      context: .
+      dockerfile: product-service/Dockerfile
+    container_name: order-saga-product-service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-product:5432/${POSTGRES_DB_PRODUCT}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      postgres-product:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
 volumes:
   postgres-product-data:
   postgres-order-data:
