@@ -74,15 +74,13 @@ Build
 ```bash
 ./gradlew build
 Project status
-M0 — Foundation (in progress). Закрыто:
+**M0 — Foundation: closed (14.11.2026).**
+- Gradle multi-module skeleton (4 модуля)
+- docker-compose: 3 PostgreSQL + Kafka + 4 сервиса, все healthy
+- CI: GitHub Actions, build зелёный
+- README, decisions-log, errors-log
 
-Gradle multi-module skeleton (4 модуля)
-
-docker-compose: 3 PostgreSQL + Kafka, все healthy
-
-CI: GitHub Actions, build зелёный
-
-Дальше — M1: product-service (CRUD, тесты, мутация).
+**M1 — product-service (in progress):** CRUD, тесты, мутация.
 
 Подробный roadmap — в разделе 8 ТЗ.
 
