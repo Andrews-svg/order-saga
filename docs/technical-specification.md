@@ -115,6 +115,8 @@ Backend-ядро обработки заказов интернет-магази
 | 7 | `inventory-service` | `order-service` | async Kafka | `inventory.released` |
 
 ### 4.6. Диаграмма (ASCII)
+
+```text
 ┌──────────────────────────┐
 │ client │
 └────────────┬─────────────┘
@@ -142,8 +144,7 @@ GET /products│ │POST │ order.created
 │ notification │
 │ service │
 └──────────────────┘
-
-text
+```
 
 ### 4.7. Глоссарий раздела
 - **SPOF** — Single Point of Failure.
@@ -186,8 +187,10 @@ CREATE TABLE products (
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_products_name ON products (name);
-5.3. Схема БД order-service
-sql
+```
+
+### 5.3. Схема БД order-service
+```sql
 CREATE TABLE orders (
     id           UUID PRIMARY KEY,
     customer_id  UUID NOT NULL,
@@ -227,8 +230,10 @@ CREATE TABLE outbox (
     published_at TIMESTAMPTZ
 );
 CREATE INDEX idx_outbox_unpublished ON outbox (created_at) WHERE published_at IS NULL;
-5.4. Схема БД inventory-service
-sql
+```
+
+### 5.4. Схема БД inventory-service
+```sql
 CREATE TABLE inventory (
     product_id    UUID PRIMARY KEY,
     available_qty INT NOT NULL CHECK (available_qty >= 0),
@@ -264,13 +269,14 @@ CREATE INDEX idx_outbox_unpublished ON outbox (created_at) WHERE published_at IS
 UPDATE inventory SET available_qty = available_qty - :qty, reserved_qty = reserved_qty + :qty WHERE product_id = :pid AND available_qty >= :qty — если 0 строк, отказ.
 
 INSERT INTO reserves (...) ON CONFLICT (id) DO NOTHING.
+```
 
 Вернуть результат.
 
-5.5. Схема notification-service
+### 5.5. Схема notification-service
 БД нет. Потребляет order.created и order.cancelled, логирует/отправляет. Дубли допустимы.
 
-5.6. Транзакционный outbox
+### 5.6. Транзакционный outbox
 Проблема. Между коммитом БД и отправкой в Kafka есть окно: БД закоммитили, приложение упало до отправки — событие потеряно.
 
 Решение. В одной транзакции с бизнес-изменением пишем событие в outbox. Поллер читает published_at IS NULL, отправляет в Kafka, помечает published_at = now(). Гарантия: at-least-once.
@@ -279,8 +285,8 @@ INSERT INTO reserves (...) ON CONFLICT (id) DO NOTHING.
 
 Альтернатива (отвергнута): Kafka Transactions — не решают окно с БД.
 
-5.7. Контракты Kafka-топиков
-Имена: order-saga.<event>.
+### 5.7. Контракты Kafka-топиков
+Имена: order-saga.`<event>`.
 
 Ключ: orderId.
 
@@ -292,15 +298,17 @@ INSERT INTO reserves (...) ON CONFLICT (id) DO NOTHING.
 
 Consumer groups: notification-service, inventory-service, order-service.
 
-Топик	Producer	Consumer	Назначение
-order-saga.order.created	order-service	notification-service	Заказ создан
-order-saga.order.cancelled	order-service	notification-service	Заказ отменён
-order-saga.inventory.release.command	order-service	inventory-service	Команда: отменить резерв
-order-saga.inventory.released	inventory-service	order-service	Факт: резерв отменён
-5.8. Формат сообщений
+| Топик |   Producer    |   Consumer    |   Назначение  |
+|---|---|---|---|
+| `order-saga.order.created` | `order-service` | `notification-service` | `Заказ создан` |
+| `order-saga.order.cancelled` | `order-service` | `notification-service` | `Заказ отменён` |
+| `order-saga.inventory.release.command` | `order-service` | `inventory-service` | `Команда: отменить резерв` |
+| `order-saga.inventory.released` | `inventory-service`| `order-service`| Факт: резерв отменён |
+
+### 5.8. Формат сообщений
 Конверт:
 
-json
+```json
 {
   "messageId": "uuid",
   "correlationId": "uuid",
@@ -311,6 +319,7 @@ json
   "timestamp": "2026-11-12T16:30:00Z",
   "payload": {}
 }
+```
 Payload:
 
 order.created: { "customerId": "uuid", "totalAmount": 123.45, "items": [...] }
@@ -321,50 +330,60 @@ inventory.release.command: { "reserveIds": ["uuid"], "reason": "saga_compensatio
 
 inventory.released: { "reserveIds": ["uuid"], "releasedAt": "..." }
 
-5.9. Глоссарий раздела
+
+### 5.9. Глоссарий раздела
 Outbox — таблица для атомарной записи события вместе с бизнес-изменением.
 
 Consumer group — группа потребителей Kafka.
 
 Ключ сообщения — определяет партицию.
 
-Раздел 6. Сценарии
+## Раздел 6. Сценарии
 Дата: 12.11.2026, 16:30
 Статус: согласован
 
-6.1. Конечный автомат заказа
+### 6.1. Конечный автомат заказа
 Статусы заказа:
 
-text
+```text
 CREATED ──► CONFIRMED ──► (конец, успех)
    │
    └──────► CANCELLED ──► (конец, отмена)
+```
+
 Состояния саги:
 
-text
+```text
 STARTED ──► PRODUCT_CHECKED ──► RESERVED ──► COMPLETED
    │              │                 │
    │              │                 └──► COMPENSATING ──► COMPENSATED
    │              └──► COMPENSATING
    └──► FAILED
-6.2. Happy path
+```
+
+### 6.2. Happy path
+```text
 #	Шаг	Актор	Действие	Состояние
 1	Клиент создаёт заказ	client → order-service	POST /orders	orders: CREATED, saga: STARTED
 2	Проверка каталога	order-service → product-service	GET /products/{id}	saga: PRODUCT_CHECKED
 3	Резерв	order-service → inventory-service	POST /inventory/reserves	saga: RESERVED
 4	Подтверждение	order-service	orders.status = CONFIRMED, outbox order.created	orders: CONFIRMED, saga: COMPLETED
 5	Уведомление	Kafka → notification-service	Логирует/отправляет	—
+```
 Ответ клиенту: 201 Created с orderId и status: CONFIRMED.
 
-6.3. Компенсация A — нет товара
+### 6.3. Компенсация A — нет товара
+```text
 #	Шаг	Действие	Состояние
 1	Клиент создаёт заказ	POST /orders	orders: CREATED, saga: STARTED
 2	Проверка каталога	404 / timeout	saga: FAILED
 3	Отмена заказа	orders.status = CANCELLED, outbox order.cancelled	orders: CANCELLED
 4	Уведомление	Kafka order.cancelled	—
+```
 Компенсаций не требуется. Ответ: 422 или 404.
 
-6.4. Компенсация B — нет остатков
+### 6.4. Компенсация B — нет остатков
+```text
 #	Шаг	Действие	Состояние
 1	Клиент создаёт заказ	POST /orders	orders: CREATED, saga: STARTED
 2	Проверка каталога	OK	saga: PRODUCT_CHECKED
@@ -373,11 +392,13 @@ STARTED ──► PRODUCT_CHECKED ──► RESERVED ──► COMPLETED
 5	inventory потребляет	Отменяет резервы, публикует inventory.released	reserves: RELEASED
 6	order потребляет	saga: COMPENSATED, orders: CANCELLED, outbox order.cancelled	orders: CANCELLED
 7	Уведомление	Kafka order.cancelled	—
+```
 Частичный резерв: saga_state.payload хранит reserveIds[] → компенсация отменяет все.
 
 Ответ: 409 Conflict.
 
-6.5. Компенсация C — inventory timeout
+### 6.5. Компенсация C — inventory timeout
+```text
 #	Шаг	Действие	Состояние
 1	Резерв	timeout (2s)	—
 2	Retry	3× с backoff	—
@@ -385,18 +406,22 @@ STARTED ──► PRODUCT_CHECKED ──► RESERVED ──► COMPLETED
 4	Компенсация	outbox inventory.release.command	—
 5	Kafka ждёт	inventory вернётся → отменит	reserves: RELEASED
 6	inventory.released	Завершение	orders: CANCELLED, saga: COMPENSATED
+```
 Ответ: 503 или 409.
 
-6.6. Компенсация D — падение order-service в RESERVED
+### 6.6. Компенсация D — падение order-service в RESERVED
+```text
 #	Шаг	Действие	Состояние
 1	Резерв выполнен	reserves: ACTIVE	saga: RESERVED, orders: CREATED
 2	order-service упал	—	orders: CREATED, saga: RESERVED (в БД)
 3	Новый экземпляр	Читает saga_state	—
 4	Recovery-задача	Саги в RESERVED старше 5 мин → завершает	orders: CONFIRMED, saga: COMPLETED
 5	Уведомление	Kafka order.created	—
+```
 Требование к recovery: идемпотентность.
 
-6.7. Таблица «что если»
+### 6.7. Таблица «что если»
+```text
 Ситуация	Что происходит	Гарантия
 Повторная доставка inventory.release.command	Проверка processed_messages → пропуск	Идемпотентность
 Повторная доставка order.created	notification без БД → дубль	Осознанно
@@ -408,46 +433,54 @@ inventory-service недоступен	timeout + retry → circuit open → COMP
 Частичный резерв	payload.reserveIds[] → компенсация всех	Список в payload
 order-service упал в RESERVED	Recovery-задача	Персистентность + recovery
 Дублирование POST /orders	Idempotency-Key — post-MVP	Открытый вопрос
-6.8. Таймауты и retry (Resilience4j)
+```
+
+### 6.8. Таймауты и retry (Resilience4j)
+```text
 Вызов	Timeout	Retry	Circuit breaker
 order → product (GET)	1s	2×, backoff 100ms	50% / 10 вызовов → open 10s
 order → inventory (POST reserve)	2s	2×, backoff 200ms	50% / 10 → open 10s
+```
 Правило: retry только на идемпотентные операции.
 
-6.9. Открытые вопросы
+### 6.9. Открытые вопросы
 Idempotency-Key для POST /orders — post-MVP.
 
 Таймаут «зависшей» саги в RESERVED — 5 минут (конфигурируемо).
 
-Раздел 7. Нефункциональные требования
+## Раздел 7. Нефункциональные требования
 Дата: 12.11.2026, 16:30
 Статус: согласован
 Статус чисел: гипотеза, проверяемая практикой. Изменение — только через журнал решений с обоснованием.
 
-7.1. Принципы
+### 7.1. Принципы
 Измеримость. Каждое требование — число или проверяемое свойство.
 
 MVP-реализм. НФТ уровня прода (99.99%, мульти-ДЦ) не ставим.
 
 Проверка фактом. Каждое НФТ имеет способ проверки.
 
-7.2. Производительность
+### 7.2. Производительность
+```text
 Параметр	Значение
 RPS на POST /orders	50
 Latency sync-пути	p50 < 150 мс, p95 < 500 мс, p99 < 1 с
 Latency async-звена	p95 < 2 с
 Пропускная способность саги	≥ 50 саг/с
+```
 Способ проверки: нагрузочный тест (Gatling или k6) в M6.
 
-7.3. Доступность и восстановление
+### 7.3. Доступность и восстановление
+```text
 Параметр	MVP
 SLA	99.0%
 RTO	< 5 мин
 RPO	0 для событий, 0 для orders в пределах одной БД
 HA БД	Нет (post-MVP)
+```
 Честно: MVP переживает падение сервиса, но не потерю диска БД.
 
-7.4. Безопасность
+### 7.4. Безопасность
 В MVP:
 
 Bean Validation на всех эндпоинтах.
@@ -468,9 +501,10 @@ mTLS между сервисами. В MVP сервисы доверяют др�
 
 Rate limiting, WAF.
 
-7.5. Наблюдаемость
+### 7.5. Наблюдаемость
 Метрики:
 
+```text
 Метрика	Тип	Зачем
 http_server_requests_seconds	histogram	Latency
 saga_state_count{status}	gauge	Зависшие саги
@@ -478,6 +512,7 @@ outbox_unpublished_count	gauge	Застрявший поллер
 kafka_consumer_lag	gauge	Отставание потребителей
 resilience4j_circuitbreaker_state	gauge	Деградация
 saga_compensations_total{reason}	counter	Бизнес-метрика
+```
 Correlation ID: X-Correlation-Id → MDC → логи → Kafka → HTTP.
 
 Логи: JSON, поля: timestamp, level, service, correlationId, message.
@@ -486,13 +521,16 @@ Grafana: один дашборд.
 
 Distributed tracing — post-MVP.
 
-7.6. Масштабируемость
+### 7.6. Масштабируемость
+```text
 Аспект	MVP
 Горизонтальное масштабирование	Архитектурно готово (stateless)
 Партиции Kafka	3
 Масштабирование БД	Нет
 Outbox-поллер	SELECT ... FOR UPDATE SKIP LOCKED
-7.7. Совместимость и окружение
+```
+### 7.7. Совместимость и окружение
+```text
 Параметр	Значение
 Java	21 (LTS)
 Spring Boot	3.5.x
@@ -501,9 +539,10 @@ PostgreSQL	16
 Kafka	KRaft, apache/kafka:3.8.x
 Docker Compose	один docker-compose.yml
 CI	GitHub Actions
+```
 Версии — в gradle/libs.versions.toml.
 
-7.8. Ограничения MVP
+### 7.8. Ограничения MVP
 Нет HA БД.
 
 Нет аутентификации.
@@ -518,11 +557,11 @@ POST /orders не идемпотентен на уровне клиента.
 
 Правило: каждое ограничение — в разделе 9 или 8.4.
 
-Раздел 8. Roadmap
+## Раздел 8. Roadmap
 Дата: 12.11.2026, 16:30
 Статус: согласован
 
-8.1. Принципы
+### 8.1. Принципы
 Этап закрыт — только по факту (4×4).
 
 Последовательность жёсткая.
@@ -531,7 +570,8 @@ MVP — M0–M7. После M7 — стоп.
 
 Шаг = одно действие = один коммит.
 
-8.2. Обзор этапов
+### 8.2. Обзор этапов
+```text
 Этап	Название	Результат	Зависит от
 M0	Foundation	Репозиторий, скелет, Docker Compose, CI	—
 M1	product-service	CRUD, тесты, мутация	M0
@@ -541,7 +581,8 @@ M4	notification-service	Kafka-консьюмер	M3
 M5	Observability	Micrometer, Prometheus, Grafana	M1–M4
 M6	E2E + нагрузка	Полный сценарий, нагрузочный тест, README	M5
 M7	MVP closed	CI 4/4, docker compose up, README, критерии	M6
-8.3. Детализация
+```
+### 8.3. Детализация
 M0 — Foundation: репозиторий, Gradle multi-module, модули-заглушки, docker-compose.yml, CI-скелет, README-скелет, .gitignore, .env.example.
 Критерий: ./gradlew build зелёный, docker compose up → 4 сервиса на /actuator/health.
 
@@ -567,7 +608,8 @@ M6 — E2E + нагрузка: E2E-тесты (happy + компенсации + 
 M7 — MVP closed: чек-лист раздела 10, тег v0.1.0-mvp.
 Критерий: все пункты — факт.
 
-8.4. Post-MVP
+### 8.4. Post-MVP
+```text
 #	Что	Оценка
 1	Idempotency-Key для POST /orders	S
 2	springdoc-openapi	S
@@ -577,21 +619,22 @@ M7 — MVP closed: чек-лист раздела 10, тег v0.1.0-mvp.
 6	Kubernetes (kind)	L
 7	История заказов	M
 8	Метрики бизнес-уровня	S
+```
 Правило: ни один пункт не начинается, пока M7 не закрыт.
 
-8.5. Риски roadmap
+### 8.5. Риски roadmap
 M3 — самый рискованный. При затягивании — сигнал замедления, дробление.
 
 M5 может съесть время. Минимальный набор метрик — обязателен.
 
 Нагрузочный тест может показать, что цифры нереалистичны. Это факт, не провал. Журнал решений.
 
-Раздел 9. Риски
+## Раздел 9. Риски
 Дата: 12.11.2026, 16:30
 Статус: согласован
 Статус рисков: гипотезы, проверяемые практикой. Вероятность и влияние уточняются после каждого этапа.
 
-9.1. Принципы
+### 9.1. Принципы
 Риск без митигации — не риск, а паника.
 
 Честность важнее комфорта.
@@ -600,7 +643,8 @@ M5 может съесть время. Минимальный набор мет�
 
 Риск пересматривается после каждого этапа.
 
-9.2. Технические риски
+### 9.2. Технические риски
+```text
 #	Риск	Вероятность	Влияние	Митигация	Владелец
 T1	M3 затягивается	Высокая	Высокое	Дробление M3a / M3b	Архитектор
 T2	Нагрузочные цифры не подтверждаются	Средняя	Среднее	Нагрузочный тест — факт. Журнал решений	Архитектор + Разработчик
@@ -609,19 +653,25 @@ T4	Outbox-поллер дублирует отправку	Средняя	Низ
 T5	Kafka KRaft нестабильна в Docker Compose	Средняя	Среднее	Проверенный образ, named volume, healthcheck	Разработчик
 T6	Recovery-задача не идемпотентна	Средняя	Высокое	Проверка outbox.aggregate_id + event_type, тест	Архитектор
 T7	Testcontainers медленные	Средняя	Низкое	Reuse, параллельные тесты, кэш Gradle	Разработчик
-9.3. Организационные риски
+```
+### 9.3. Организационные риски
+```text
 #	Риск	Вероятность	Влияние	Митигация	Владелец
 O1	Scope creep	Высокая	Высокое	Post-MVP не начинается до M7	Архитектор
 O2	Потеря фокуса на M3	Средняя	Высокое	Критерий закрытия M3 — 4×4	Архитектор + Разработчик
 O3	Документация устарела	Средняя	Среднее	Журнал решений, живой документ	Архитектор
 O4	Bus factor = 1	Средняя	Высокое	Документация в репозитории	Архитектор
-9.4. Продуктовые риски
+```
+### 9.4. Продуктовые риски
+```text
 #	Риск	Вероятность	Влияние	Митигация	Владелец
 P1	Демо не впечатляет	Средняя	Среднее	README + диаграмма + нагрузочный отчёт + Grafana. Демо компенсации B	Архитектор
 P2	Стек тяжёлый для презентации	Низкая	Низкое	docker compose up одной командой. README объясняет	Разработчик
 P3	Нет аутентификации	Средняя	Низкое	README: auth — post-MVP, осознанно	Архитектор
-9.5. Матрица «вероятность × влияние»
-text
+```
+
+### 9.5. Матрица «вероятность × влияние»
+```text
 Влияние
   Высокое │  T3        T1, O1
           │  O4
@@ -631,8 +681,9 @@ text
           └──────────────────────────────
             Низкая    Средняя    Высокая   Вероятность
 Красная зона (фокус внимания): T1, O1.
+```
 
-9.6. Зоны ответственности
+### 9.6. Зоны ответственности
 Архитектор:
 
 Контроль декомпозиции M3 (дробление M3a / M3b при затягивании).
@@ -651,21 +702,22 @@ text
 
 M4 не начинается, пока M3 не закрыт по 4×4.
 
-9.7. Механизм пересмотра
+### 9.7. Механизм пересмотра
 После каждого этапа — сверка: какие риски сбылись, какие закрылись, какие новые.
 
 Запись в журнал решений.
 
 Новый риск — сразу в таблицу.
 
-Раздел 10. Критерии готовности (MVP Closed)
+## Раздел 10. Критерии готовности (MVP Closed)
 Дата: 12.11.2026, 16:30
 Статус: согласован
 
-10.1. Принцип
+### 10.1. Принцип
 MVP закрыт — только если каждый пункт — ФАКТ. Один невыполненный пункт = MVP не закрыт.
 
-10.2. Функциональные критерии
+### 10.2. Функциональные критерии
+```text
 #	Критерий	Проверка
 F1	POST /orders — happy path	E2E-тест
 F2	Компенсация A: товар не найден	E2E-тест
@@ -676,7 +728,9 @@ F6	Повторная доставка inventory.release.command	Интегра�
 F7	Частичный резерв	Интеграционный тест
 F8	product-service CRUD	Интеграционный тест
 F9	notification-service потребляет	Интеграционный тест
-10.3. Технические критерии
+```
+### 10.3. Технические критерии
+```text
 #	Критерий	Проверка
 T1	4×4 зелёные	Отчёты
 T2	Мутация всех тестов	docs/mutation-report.md
@@ -686,7 +740,9 @@ T5	Stateless order-service	E2E (два контейнера)
 T6	Recovery идемпотентна	Интеграционный тест
 T7	SKIP LOCKED в поллере	Код + тест
 T8	Resilience4j настроен	Конфиг + тест
-10.4. Нефункциональные критерии
+```
+### 10.4. Нефункциональные критерии
+```text
 #	Критерий	Проверка
 N1	50 RPS	Нагрузочный отчёт
 N2	p95 < 500 мс	Нагрузочный отчёт
@@ -694,21 +750,27 @@ N3	p95 < 2 с async	Нагрузочный отчёт
 N4	SLA 99.0% (или явно: не проверялось)	README
 N5	RTO < 5 мин	E2E-тест (F5)
 N6	Ограничения MVP в README	Проверка README
-10.5. Наблюдаемость
+```
+### 10.5. Наблюдаемость
+```text
 #	Критерий	Проверка
 O1	Grafana-дашборд	Демо
 O2	Correlation ID end-to-end	Демо
 O3	saga_compensations_total	Демо
 O4	outbox_unpublished_count	Демо
 O5	kafka_consumer_lag	Демо
-10.6. Инфраструктура
+```
+### 10.6. Инфраструктура
+```text
 #	Критерий	Проверка
 I1	docker compose up одной командой	Чистая машина
 I2	./gradlew build зелёный	CI + локально
 I3	CI 4/4	GitHub Actions
 I4	/actuator/health всех сервисов	curl
 I5	Тег v0.1.0-mvp	git tag
-10.7. Документация
+```
+### 10.7. Документация
+```text
 #	Критерий	Проверка
 D1	README полный	Проверка README
 D2	ТЗ в репозитории	docs/technical-specification.md
@@ -716,7 +778,8 @@ D3	Журнал решений	Проверка
 D4	Журнал ошибок	Проверка
 D5	Нагрузочный отчёт	docs/load-test-report.md
 D6	Отчёт по мутации	docs/mutation-report.md
-10.8. Процедура закрытия
+```
+### 10.8. Процедура закрытия
 Разработчик проходит чек-лист.
 
 Архитектор проверяет факты независимо (не «на слово»).
@@ -727,7 +790,7 @@ D6	Отчёт по мутации	docs/mutation-report.md
 
 После закрытия — стоп.
 
-10.9. Что НЕ является критерием
+### 10.9. Что НЕ является критерием
 «Код красивый» — не критерий.
 
 «Работает на моей машине» — не критерий.
@@ -738,11 +801,12 @@ D6	Отчёт по мутации	docs/mutation-report.md
 
 «Нагрузка потом» — не критерий.
 
-Раздел 11. Приложения
+## Раздел 11. Приложения
 Дата: 12.11.2026, 16:30
 Статус: согласован
 
-11.1. Сводный глоссарий
+### 11.1. Сводный глоссарий
+```text
 Термин	Расшифровка	Раздел
 At-least-once	Гарантия доставки: минимум один раз, возможны дубли	5.6
 Bus factor	Сколько человек может выпасть	9.3
@@ -766,7 +830,9 @@ Stateless	Не хранит состояние в памяти	4.3
 Scope creep	Неконтролируемое расширение	9.3
 Хореография	Нет центрального координатора	4.1
 4×4	Четыре сервиса — четыре зелёных проверки	4.8
-11.2. Ссылки
+```
+### 11.2. Ссылки
+```text
 Тема	Источник
 Saga pattern	microservices.io/patterns/data/saga.html
 Kafka KRaft	kafka.apache.org/documentation
@@ -778,9 +844,11 @@ Gradle Kotlin DSL	docs.gradle.org
 PostgreSQL 16	postgresql.org/docs/16
 Docker Compose	docs.docker.com/compose
 GitHub Actions	docs.github.com/actions
+```
 Правило: ссылка — для углубления. Источник истины — код, терминал, git.
 
-11.3. Сводный журнал решений
+### 11.3. Сводный журнал решений
+```text
 Дата	Решение	Альтернативы	Почему
 11.11.2026	Имя order-saga	order-flow, saga-flow	Сигнал навыка + домен
 11.11.2026	Термин «OMS Transactional Core»	«OMS»	Точный, скромный
@@ -804,8 +872,9 @@ GitHub Actions	docs.github.com/actions
 12.11.2026	Принцип 4×4	«Тесты зелёные — готово»	Мутация — доказательство
 12.11.2026	Независимая проверка архитектором	Разработчик проверяет сам	Защита от самообмана
 12.11.2026	Числа ТЗ — гипотезы	«Навсегда»	Проверка практикой
-11.4. Структура репозитория
-text
+```
+### 11.4. Структура репозитория
+```text
 order-saga/
 ├── README.md
 ├── docs/
@@ -826,7 +895,9 @@ order-saga/
 ├── build.gradle.kts
 ├── settings.gradle.kts
 └── gradlew, gradlew.bat, gradle/wrapper/
-11.5. Что дальше
+```
+
+### 11.5. Что дальше
 Создать репозиторий order-saga — выполнено (12.11.2026).
 
 Первый коммит: docs: add technical specification — выполнено (12.11.2026, fcb924e).
