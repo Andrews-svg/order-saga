@@ -515,7 +515,9 @@ saga_compensations_total{reason}	counter	Бизнес-метрика
 ```
 Correlation ID: X-Correlation-Id → MDC → логи → Kafka → HTTP.
 
-Логи: JSON, поля: timestamp, level, service, correlationId, message.
+Логи: JSON в stdout → Loki → Grafana. Поля: timestamp, level, service, correlationId, message. 
+Единый поиск по всем сервисам по correlationId, service, level. 
+В MVP-конфигурации — docker compose logs для локальной отладки; Loki — для сквозного поиска по саге.
 
 Grafana: один дашборд.
 
@@ -578,8 +580,8 @@ M1	product-service	CRUD, тесты, мутация	M0
 M2	inventory-service	Резервы, идемпотентность, outbox	M0
 M3	order-service	Оркестратор саги, компенсации, recovery	M1, M2
 M4	notification-service	Kafka-консьюмер	M3
-M5	Observability	Micrometer, Prometheus, Grafana	M1–M4
-M6	E2E + нагрузка	Полный сценарий, нагрузочный тест, README	M5
+M5  Observability   Micrometer, Prometheus, Grafana, Loki M1–M4
+M6	E2E + нагрузка	Полный сценарий, нагрузочный тест, README M5
 M7	MVP closed	CI 4/4, docker compose up, README, критерии	M6
 ```
 ### 8.3. Детализация
@@ -599,8 +601,8 @@ M3 — order-service: Flyway, POST /orders, sync-вызовы с Resilience4j, �
 M4 — notification-service: Kafka-консьюмер, логирование, метрика, тесты, мутация, CI.
 Критерий: 4×4.
 
-M5 — Observability: Micrometer, Prometheus, Grafana, correlation ID, JSON-логи, тесты.
-Критерий: дашборд работает, correlation ID end-to-end.
+M5 — Observability: Micrometer, Prometheus, Grafana, Loki (сбор логов), correlation ID, JSON-логи, тесты.
+Критерий: дашборд метрик работает, поиск по correlationId в Loki возвращает все логи саги end-to-end, correlation ID сквозной.
 
 M6 — E2E + нагрузка: E2E-тесты (happy + компенсации + recovery), нагрузочный тест, отчёт, README финальный.
 Критерий: E2E зелёные, нагрузочный отчёт, README полный.
