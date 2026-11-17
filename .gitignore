@@ -1,6 +1,7 @@
 # === Java / Gradle ===
 .gradle/
 build/
+**/bin/
 !gradle/wrapper/gradle-wrapper.jar
 *.class
 *.log
@@ -30,7 +31,7 @@ Desktop.ini
 # === Docker ===
 docker-compose.override.yml
 
-# === Testcontainers / временные ===
+# === Testcontainers / Р Р†РЎР‚Р ВµР СР ВµР Р…Р Р…РЎвЂ№Р Вµ ===
 .testcontainers/
 
 !gradle/wrapper/gradle-wrapper.jar
