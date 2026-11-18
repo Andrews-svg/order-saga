@@ -15,6 +15,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -77,6 +78,24 @@ class ProductServiceTest {
         assertThatThrownBy(() -> service.getById(id))
                 .isInstanceOf(ProductNotFoundException.class)
                 .hasMessageContaining(id.toString());
+    }
+
+    @Test
+    void getAll_shouldReturnAll() {
+        UUID id1 = UUID.randomUUID();
+        UUID id2 = UUID.randomUUID();
+        Product p1 = productWith(id1, "Laptop", "Good laptop", "1500.00");
+        Product p2 = productWith(id2, "Mouse", "Wireless", "25.00");
+        when(repository.findAll()).thenReturn(List.of(p1, p2));
+
+        List<ProductResponse> result = service.getAll();
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).id()).isEqualTo(id1);
+        assertThat(result.get(0).name()).isEqualTo("Laptop");
+        assertThat(result.get(1).id()).isEqualTo(id2);
+        assertThat(result.get(1).name()).isEqualTo("Mouse");
+        verify(repository).findAll();
     }
 
     @Test
