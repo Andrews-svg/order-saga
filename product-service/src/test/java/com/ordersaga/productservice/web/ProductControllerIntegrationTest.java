@@ -86,6 +86,8 @@ class ProductControllerIntegrationTest extends AbstractIntegrationTest {
         List<ProductResponse> body = List.of(response.getBody());
         assertThat(body).hasSize(1);
         assertThat(body.get(0).id()).isEqualTo(created.id());
+        assertThat(body.get(0).name()).isEqualTo("Laptop");
+        assertThat(body.get(0).description()).isEqualTo("ThinkPad X1");
     }
 
     @Test
