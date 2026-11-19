@@ -80,7 +80,11 @@ Project status
 - CI: GitHub Actions, build зелёный
 - README, decisions-log, errors-log
 
-**M1 — product-service (in progress):** CRUD, тесты, мутация.
+**M1 — product-service: closed (19.11.2026).**
+- CRUD REST API: POST/GET/GET all/PUT/DELETE + 404 + 400 (`/products`, порт 8081)
+- 18 тестов: 8 unit (Mockito) + 10 integration (Testcontainers + real PostgreSQL 16)
+- Мутация: 10/10 KILLED (mutation score 100%), 2 gap найдено и закрыто retest'ом — [docs/mutation-report.md](docs/mutation-report.md)
+- CI: GitHub Actions, build + test зелёный
 
 Подробный roadmap — в разделе 8 ТЗ.
 
