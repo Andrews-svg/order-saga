@@ -19,3 +19,21 @@
 | M5 | `delete`: `repository.deleteById(id)` закомментирован (ветка `existsById`/not-found цела) | `ProductService.java:63` | `ProductServiceTest.delete_shouldDelete_whenExists` (WantedButNotInvoked, строка 136: `verify(repository).deleteById` не сработал) + `ProductControllerIntegrationTest.delete_returns204` (AssertionError, строка 128: `findById` не пуст — запись осталась). `delete_notFound_returns404` зелёный — точечность | KILLED (2/18) |
 | M6 | `toResponse`: `name` ↔ `description` перепутаны (плейсхолдер `__TMP__` после провала двойного `-replace`) | `ProductService.java:69,70` | **Retest после M6a:** Unit 4 RED (create:53, getById:70, getAll:95, update:113) + Integration 4 RED (createProduct:48, getById:65, update:105, **getAll:89**). Первый прогон: `getAll_returnsList` SURVIVED — GAP M6a | KILLED (8/18) |
 | M6a | **Находка:** integration `getAll_returnsList` не проверял name/description — только size + id | `ProductControllerIntegrationTest.java:89-90` | Мутация `toResponse` перепутала поля, integration `getAll_returnsList` не упал (первый прогон). **Закрыто:** добавлены assert на `name` (строка 89) и `description` (строка 90). Retest M6: `getAll_returnsList` падает на строке 89 → KILLED (8/18) | CLOSED |
+| M7 | `handleNotFound`: `ResponseEntity.status(NOT_FOUND)` → `INTERNAL_SERVER_ERROR` (тело `ErrorResponse` не тронуто) | `GlobalExceptionHandler.java:26` | **Integration 3 RED:** `getById_notFound_returns404`:74, `update_notFound_returns404`:118, `delete_notFound_returns404`:139 (статус 500 вместо 404). **Unit 3 зелёных** — проверяют `ProductNotFoundException` из сервиса, не HTTP-статус | KILLED (3/18) |
+| M8 | `handleValidation`: `ResponseEntity.status(BAD_REQUEST)` → `INTERNAL_SERVER_ERROR` (тело `ErrorResponse` не тронуто) | `GlobalExceptionHandler.java:42` | **Integration 2 RED:** `create_blankName_returns400`:149, `create_nullPrice_returns400`:159 (500 вместо 400). **Unit зелёные** — `ProductServiceTest` не проходит через `@Valid`/Spring MVC | KILLED (2/18) |
+| M9 | `ProductController.create`: `ResponseEntity.status(CREATED)` → `OK` (201 → 200) | `ProductController.java:34` | **Integration 5 RED, все на строке 39 (helper `createProduct`, assert CREATED):** `createProduct_returns201WithBody`, `getById_returns200`, `getAll_returnsList`, `update_returns200WithUpdatedBody`, `delete_returns204`. **Зелёные 13:** `create_blankName/NullPrice` (прямой POST), 3 not-found, 7 unit | KILLED (5/18) |
+| M10 | `ProductRequest.price`: `@NotNull` закомментирован | `ProductRequest.java:18` | `ProductControllerIntegrationTest.create_nullPrice_returns400`:159 (AssertionFailedError — без `@NotNull` валидация пропустила null, статус не 400). `create_blankName_returns400` зелёный (`@NotBlank` цел), unit'ы зелёные (вне Bean Validation) | KILLED (1/18) |
+
+## Итог M1 — mutation score
+
+| Метрика | Значение |
+|---|---|
+| Мутаций проведено | 10 |
+| KILLED | 10/10 (100%) |
+| GAP найдено | 2 (M3a — unit `getAll`, M6a — integration `getAll` поля) |
+| GAP закрыто фактом (retest) | 2/2 |
+| Тестов до серии | 17 |
+| Тестов после серии | 18 (+unit `getAll`) |
+| Уроков | unit ≠ integration (слои), helper = общая точка, точечность через `Substring`, плейсхолдер при пересечении replace |
+
+**Вывод:** тесты ловят баги. Не «зелёные», а «ловят» — доказано 10 мутациями и 2 retest'ами.
