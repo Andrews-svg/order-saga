@@ -37,3 +37,21 @@
 | Уроков | unit ≠ integration (слои), helper = общая точка, точечность через `Substring`, плейсхолдер при пересечении replace |
 
 **Вывод:** тесты ловят баги. Не «зелёные», а «ловят» — доказано 10 мутациями и 2 retest'ами.
+| M-A3.1 | `IdempotencyService.hash()`: возврат константы `"constant"` вместо SHA-256 | `IdempotencyService.java:67` | `IdempotencyIntegrationTest.reserve_sameKeyDifferentPayload_returns409`:89 (AssertionFailedError: expected 409, got 200 — hash «совпал», вернулся кэш). Зелёные 21: `sameKeySamePayload` (кэш не про hash), `withoutKey` (hash не вызывается) | KILLED (1/22) |
+| M-A3.2 | `IdempotencyService.execute`: `if (existing.isPresent())` → `if (false && ...)` — кэш никогда не используется | `IdempotencyService.java:33` | **3 RED:** `reserve_sameKeySamePayload`:71 (reserved=60 вместо 30), `release_sameKeySamePayload`:122 (второй release → 409 вместо 200), `reserve_sameKeyDifferentPayload`:89 (без кэша второй action → save падает на PK → 500 вместо 409). `withoutKey` зелёный | KILLED (3/22) |
+| M-A3.3 | `IdempotencyService.execute`: `@Transactional` убран | `IdempotencyService.java:28` | **22/22 green** — последовательный сценарий (action + save успешны) не требует атомарности. Spring создаёт две неявные транзакции, обе коммитятся | **SURVIVED** |
+| M-A3.3a | **Находка:** тесты не проверяют атомарность (rollback при падении `save`) | `IdempotencyIntegrationTest` | Атомарность нужна только в **race** (два параллельных запроса с одним ключом). Последовательные тесты не ловят. **Backlog A3.4:** race-тест (`@Transactional(REQUIRES_NEW)` для re-read), 2 потока + `CountDownLatch` + `Awaitility` | GAP |
+| M-A3.4 | `IdempotencyService.resolve`: `!equals(hash)` → `equals(hash)` — логика перевёрнута | `IdempotencyService.java:43` | **3 RED:** `reserve_sameKeySamePayload`:70 (hash совпал → 409 вместо 200), `release_sameKeySamePayload`:122 (409 вместо 200), `reserve_sameKeyDifferentPayload`:89 (hash не совпал → кэш → 200 вместо 409). `withoutKey` зелёный | KILLED (3/22) |
+
+## Итог A3 — идемпотентность
+
+| Метрика | Значение |
+|---|---|
+| Мутаций | 4 |
+| KILLED | 3 (M-A3.1 hash, M-A3.2 кэш, M-A3.4 сравнение) |
+| SURVIVED | 1 (M-A3.3 @Transactional) |
+| GAP | 1 (M-A3.3a: атомарность/race → backlog A3.4) |
+| Тестов A3 | 6 новых (2 repository + 4 integration idempotency) |
+| Всего тестов | 22 |
+
+**Итог:** последовательная идемпотентность покрыта фактом. Атомарность (race) — GAP, записан честно.
