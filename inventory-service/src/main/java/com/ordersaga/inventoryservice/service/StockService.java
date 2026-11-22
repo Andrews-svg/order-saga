@@ -13,10 +13,15 @@ import java.util.UUID;
 @Service
 public class StockService {
 
-    private final StockRepository repository;
+    static final String EVENT_RESERVED = "inventory.reserved";
+    static final String EVENT_RELEASED = "inventory.released";
 
-    public StockService(StockRepository repository) {
+    private final StockRepository repository;
+    private final OutboxService outbox;
+
+    public StockService(StockRepository repository, OutboxService outbox) {
         this.repository = repository;
+        this.outbox = outbox;
     }
 
     @Transactional
@@ -46,7 +51,9 @@ public class StockService {
             throw new InsufficientStockException(productId, available, quantity);
         }
         stock.setReservedQuantity(stock.getReservedQuantity() + quantity);
-        return toResponse(repository.save(stock));
+        StockResponse response = toResponse(repository.save(stock));
+        outbox.record(EVENT_RESERVED, productId, response);
+        return response;
     }
 
     @Transactional
@@ -60,7 +67,9 @@ public class StockService {
                             + ": only " + stock.getReservedQuantity() + " reserved");
         }
         stock.setReservedQuantity(stock.getReservedQuantity() - quantity);
-        return toResponse(repository.save(stock));
+        StockResponse response = toResponse(repository.save(stock));
+        outbox.record(EVENT_RELEASED, productId, response);
+        return response;
     }
 
     @Transactional(readOnly = true)

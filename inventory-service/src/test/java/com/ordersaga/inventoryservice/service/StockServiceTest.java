@@ -17,6 +17,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -24,6 +26,9 @@ class StockServiceTest {
 
     @Mock
     private StockRepository repository;
+
+    @Mock
+    private OutboxService outbox;
 
     @InjectMocks
     private StockService service;
@@ -47,6 +52,7 @@ class StockServiceTest {
         assertThat(response.totalQuantity()).isEqualTo(100);
         assertThat(response.reservedQuantity()).isEqualTo(30);
         assertThat(response.availableQuantity()).isEqualTo(70);
+        verify(outbox).record(eq(StockService.EVENT_RESERVED), eq(id), any(StockResponse.class));
     }
 
     @Test
@@ -79,6 +85,7 @@ class StockServiceTest {
 
         assertThat(response.reservedQuantity()).isEqualTo(10);
         assertThat(response.availableQuantity()).isEqualTo(90);
+        verify(outbox).record(eq(StockService.EVENT_RELEASED), eq(id), any(StockResponse.class));
     }
 
     @Test
