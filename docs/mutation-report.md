@@ -55,3 +55,7 @@
 | Всего тестов | 22 |
 
 **Итог:** последовательная идемпотентность покрыта фактом. Атомарность (race) — GAP, записан честно.
+| A4-M1 | `StockService.reserve`: `outbox.record(EVENT_RESERVED, ...)` закомментирован | `StockService.java:55` | `StockServiceTest.reserve_shouldIncreaseReserved_whenAvailableEnough`:55 (WantedButNotInvoked — verify(outbox).record не сработал) + `OutboxIntegrationTest.reserve_createsPendingOutboxEvent`:63 (AssertionError: hasSize(1) → 0). `release_createsPendingOutboxEvent` зелёный — точечность | KILLED (2/30) |
+| A4-M2 | `OutboxRelay.publishPending`: `setStatus(SENT)` и `setSentAt(now)` закомментированы (log и save остались) | `OutboxRelay.java:34,35` | `OutboxRelayIntegrationTest.publishPending_marksPendingAsSent`:46 (AssertionError: allMatch SENT → PENDING) + `publishPending_skipsAlreadySent`:61 (AssertionError: findByStatus PENDING не пуст). `publishPending_noop_whenNoPending` зелёный | KILLED (2/30) |
+| A4-M3 | `OutboxRelay.publishPending`: `@Transactional` убран | `OutboxRelay.java:28` | **SURVIVED (0 RED)** — 30/30 зелёные. Тесты проверяют успех (PENDING → SENT), не откат при падении события. Без теста «одно событие падает → все откатились» отсутствие `@Transactional` невидимо | SURVIVED → GAP A4.4 |
+| A4.4 | **GAP (backlog):** атомарность relay не покрыта | `OutboxRelayIntegrationTest.java` | Нужен тест: два PENDING, второе падает при `save` → первое тоже откатилось (PENDING). Сейчас проверяется только успех. Связано с A3.3 (race) — паттерн «happy-path без rollback» | GAP |
