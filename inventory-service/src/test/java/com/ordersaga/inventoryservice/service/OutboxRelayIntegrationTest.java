@@ -6,6 +6,12 @@ import com.ordersaga.inventoryservice.repository.OutboxEventRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
+import java.util.concurrent.CompletableFuture;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.UUID;
@@ -20,9 +26,14 @@ class OutboxRelayIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     OutboxEventRepository repository;
 
+    @MockitoBean
+    KafkaTemplate<String, String> kafkaTemplate;
+
     @BeforeEach
     void cleanUp() {
         repository.deleteAll();
+        when(kafkaTemplate.send(anyString(), anyString(), anyString()))
+                .thenReturn(CompletableFuture.completedFuture((SendResult<String, String>) null));
     }
 
     private OutboxEvent pendingEvent(String type) {
