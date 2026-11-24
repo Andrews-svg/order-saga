@@ -16,5 +16,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
 }
 tasks.test {
+    systemProperty("testcontainers.pull.timeout", "600")
+    systemProperty("testcontainers.image.pull", "never")
     useJUnitPlatform()
 }

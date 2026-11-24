@@ -29,7 +29,7 @@ public class OutboxRelay {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    @Scheduled(fixedDelayString = "${outbox.relay.delay-ms:5000}")
+    @Scheduled(initialDelayString = "${outbox.relay.initial-delay-ms:0}", fixedDelayString = "${outbox.relay.delay-ms:5000}")
     public void publishPending() {
         List<OutboxEvent> pending = repository.findByStatusOrderByCreatedAtAsc(STATUS_PENDING);
         for (OutboxEvent event : pending) {
