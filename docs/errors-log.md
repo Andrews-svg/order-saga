@@ -39,6 +39,16 @@
 | 17.11.2026 | Склейка команд: `git log -1 origin/mastergit status --short` → `fatal: ambiguous argument 'origin/mastergit'` | PS 5.1 склеивает при вставке из буфера. Вставлять блоками по 1–3, проверять вывод. `fatal: ambiguous argument` с «хвостом» = склейка |
 | 18.11.2026 | Ложное «мутация не легла» (M6): replace записал `/* M6a */`, grep искал `MUTATION M6` — пусто | **Grep-паттерн = строка из replace буква в букву.** Перед выводом «не легло» — сверить: что записано vs что ищем. Разведка `-split`/`IndexOf` по файлу — факт |
 | 19.11.2026 | `ParserError: Непредвиденная лексема "ы"` (M10-запись): `unit'ы` внутри `'...'` — апостроф закрыл строку | В PS 5.1 апостроф внутри `'...'` ломает строку. Варианты: `unit''ы` (двойной), `"..."`, или here-string `@'...'@`. Проверять `$line.Length` перед WriteAllText |
+
+## M2 — inventory-service
+
+| Дата | Ситуация | Урок |
+|---|---|---|
 | 20.11.2026 | `@Testcontainers` + `@Container` в abstract-классе — не singleton: два наследника → контейнер перезапускается, `@ServiceConnection` запоминает адрес первого → `Hikari total=0`, `ConnectException`, 30s таймаут × 7 тестов (4m13s) | Для shared-контейнера: убрать `@Testcontainers`/`@Container`, `static { POSTGRES.start(); }` — один контейнер на JVM. Время: 4m13s → 30s. Симптом: `Hikari total=0` + `ConnectException` — смотреть порт, не SQL |
 | 22.11.2026 | Первый integration-suite в прогоне — 50–70s (IdempotencyKeyRepository: 69.6s, 53.9s, 51.1s), остальные 0.1–1.4s. Подозрение на баг | Норма: первый suite платит за singleton `POSTGRES.start()` — Docker pull (если нет в кэше) + Flyway V1+V2+V3 + healthcheck + JVM warmup. Не баг. Реальная скорость тестов — по **второму** прогону. Для проверки: `--rerun-tasks` + сравнить время suite 1 и suite 2 |
 | 22.11.2026 | `:inventory-service:test UP-TO-DATE` — прогон 5s, XML не изменился (69.6s), ложный вывод «гипотеза не подтвердилась» | `UP-TO-DATE` = Gradle **не запускал** тесты, XML — от прошлого прогона. Для проверки времени/гипотезы — `--rerun-tasks` (или `cleanTest test`). Иначе смотришь на старый факт |
+
+| 24.11.2026 | `KafkaTestUtils.consumerProps(..., boolean)` — выдуманная сигнатура | Реальные: `(String, String, EmbeddedKafkaBroker)` и `(String, String, String)`. Порядок: `(group, autoCommit, bootstrapServers)`. Проверять сигнатуру фактом (javap / IDE / исходники) до запуска — компилятор единственный арбитр |
+| 24.11.2026 | `KafkaTestUtils.consumerProps("grp","false",bootstrap)` — `enable.auto.commit` получил `PLAINTEXT://...` | Хелпер вслепую — риск. Ручная `Map<String,Object>` с `ConsumerConfig.*` — каждый параметр по имени. Читаемо, без сюрпризов, легко отладить |
+| 24.11.2026 | `PullPolicy.neverPull()` — нет такого метода в Java Testcontainers 1.21.4 (перенёс синтаксис из Node.js) | `ImagePullPolicy` — функциональный интерфейс → лямбда `image -> false`. Плюс глобально `systemProperty("testcontainers.image.pull","never")` в `tasks.test`. Не переносить API из другого языка по памяти |
+| 24.11.2026 | `ContainerFetchException` + 9 мин при локально существующем `cp-kafka:7.6.1` | Это таймаут `RemoteDockerImage.resolve()` (2 мин), не скачивание. Лечение: `withImagePullPolicy(image -> false)` + `testcontainers.image.pull=never`. Время: 9 мин → 44s. Симптом: `ConditionTimeoutException` без явной причины в консоли — читать XML |
