@@ -52,3 +52,13 @@
 | 24.11.2026 | `KafkaTestUtils.consumerProps("grp","false",bootstrap)` — `enable.auto.commit` получил `PLAINTEXT://...` | Хелпер вслепую — риск. Ручная `Map<String,Object>` с `ConsumerConfig.*` — каждый параметр по имени. Читаемо, без сюрпризов, легко отладить |
 | 24.11.2026 | `PullPolicy.neverPull()` — нет такого метода в Java Testcontainers 1.21.4 (перенёс синтаксис из Node.js) | `ImagePullPolicy` — функциональный интерфейс → лямбда `image -> false`. Плюс глобально `systemProperty("testcontainers.image.pull","never")` в `tasks.test`. Не переносить API из другого языка по памяти |
 | 24.11.2026 | `ContainerFetchException` + 9 мин при локально существующем `cp-kafka:7.6.1` | Это таймаут `RemoteDockerImage.resolve()` (2 мин), не скачивание. Лечение: `withImagePullPolicy(image -> false)` + `testcontainers.image.pull=never`. Время: 9 мин → 44s. Симптом: `ConditionTimeoutException` без явной причины в консоли — читать XML |
+| 25.11.2026 | `-replace 'a','b' + "`n" + 'c'` → `BadReplaceArgument (4 elements)` — PS парсит `+` и `,` в `-replace` неинтуитивно | `.Replace()` (метод) для точных строк, или обернуть конкатенацию в скобки. `-replace` — только для regex, не для литералей |
+| 25.11.2026 | `Select-String 'Outbox publish failed'` → ложная тревога: WARN из `OutboxRelayUnitTest` (failure-path тест) | Grep-паттерн ≠ диагноз. Смотреть suite/test/уровень лога. «Нашлось» ≠ «баг» |
+| 25.11.2026 | Мутация 1→1, откат по склейке `MUTATION...;` не нашёл (2 строки: комментарий + `;`) | Откат — индексно, с проверкой следующей строки. Не regex по склейке |
+| 25.11.2026 | `@ActiveProfiles("test")` на abstract — наследники подхватывают | Test-properties в `src/test/resources/application-test.properties`, один раз на базе |
+
+## Мета — уроки процесса
+
+| Дата | Ситуация | Урок |
+|---|---|---|
+| 25.11.2026 | ПАМЯТКА v6 приписала коммиту f67f3f1 «4 урока 25.11», реально — 4 урока 24.11 (Kafka/Testcontainers). 4 урока 25.11 в репо отсутствуют | ПАМЯТКА сверяется с репо (`git show <hash> -- <file>`) перед записью. Память чата ≠ факт репо |

@@ -59,3 +59,11 @@
 | A4-M2 | `OutboxRelay.publishPending`: `setStatus(SENT)` и `setSentAt(now)` закомментированы (log и save остались) | `OutboxRelay.java:34,35` | `OutboxRelayIntegrationTest.publishPending_marksPendingAsSent`:46 (AssertionError: allMatch SENT → PENDING) + `publishPending_skipsAlreadySent`:61 (AssertionError: findByStatus PENDING не пуст). `publishPending_noop_whenNoPending` зелёный | KILLED (2/30) |
 | A4-M3 | `OutboxRelay.publishPending`: `@Transactional` убран | `OutboxRelay.java:28` | **SURVIVED (0 RED)** — 30/30 зелёные. Тесты проверяют успех (PENDING → SENT), не откат при падении события. Без теста «одно событие падает → все откатились» отсутствие `@Transactional` невидимо | SURVIVED → GAP A4.4 |
 | A4.4 | **GAP (backlog):** атомарность relay не покрыта | `OutboxRelayIntegrationTest.java` | Нужен тест: два PENDING, второе падает при `save` → первое тоже откатилось (PENDING). Сейчас проверяется только успех. Связано с A3.3 (race) — паттерн «happy-path без rollback» | GAP |
+
+## A5 — outbox relay → Kafka
+
+| # | Мутация | Файл:строка | Поймали тесты | Статус |
+|---|---|---|---|---|
+| M-A5.1 | `OutboxRelay.publishOne`: `kafkaTemplate.send(...).get(...)` убран (заменён комментарием `// M-A5.1: send disabled`) | `OutboxRelay.java:42` | **Unit 2 RED:** `publishPending_sendsToKafkaAndMarksSent`:56 (WantedButNotInvoked — send не вызван), `publishPending_marksFailedAndContinues_whenSendThrows`:75 (AssertionFailedError — failing стал SENT, не FAILED). **Integration 1 RED:** `OutboxRelayKafkaIntegrationTest.publishPending_sendsRealMessageToKafka_andMarksSent`:69 (IllegalStateException — сообщение не ушло). **Зелёные:** `noop_whenNoPending` (send и так не ждали) | KILLED (3/3) |
+
+**Итог A5 (на 26.11):** 1 мутация — KILLED. M-A5.2/M-A5.3 — ⬜.
