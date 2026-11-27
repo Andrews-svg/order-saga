@@ -46,3 +46,4 @@
 | errors-log 25.11 | 4 урока 25.11 + мета-урок ПАМЯТКА vs репо | 26.11.2026 | коммит `3415b25` |
 | M-A5.1 | Мутация `send` → 3 RED → откат → GREEN | 26.11.2026 | коммит `3415b25` |
 | CI #48 | Kafka Testcontainers `withImagePullPolicy(false)` в CI → Docker 404 | 27.11.2026 | коммит `9a318f2`, CI #52 зелёный |
+| M-A5.2a-next | 27.11 вечер: тест `publishPending_marksFailed_whenSendFutureFails` написан, но вставка дала дубль `@Test` → compile RED, файл откачен. Завтра: вставить заново (заменить `@Test` + `void publishPending_noop...` целиком, не добавлять перед), прогнать GREEN 4 теста, мутация `.get()` → RED, откат → GREEN, retest M-A5.2 KILLED, запись в mutation-report + backlog «Закрыто», коммит, push, CI | backlog 27.11 | M-A5.2 KILLED в mutation-report |
