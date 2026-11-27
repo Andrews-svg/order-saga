@@ -17,7 +17,8 @@
 | A1-refactor | Привести `inventory-service` к ТЗ 5.4: `inventory`/`available_qty`/`reserved_qty` вместо `stock`/`total_quantity`/`reserved_quantity`. Flyway V1, entity, repository, service, 34 теста, README | decisions-log 27.11 | код + тесты GREEN + CI |
 | A3.4 | Race idempotency: два параллельных запроса с одним `Idempotency-Key`. `@Transactional(REQUIRES_NEW)` re-read + `CountDownLatch` + `Awaitility` | mutation-report M-A3.3 SURVIVED | тест RED до фикса, GREEN после |
 | A4.4 | Атомарность relay: два PENDING, второе падает на `save` → первое тоже откатывается (PENDING) | mutation-report A4-M3 SURVIVED | тест RED до фикса, GREEN после |
-| M-A5.2 | Мутация: убрать `.get()` в `publishOne` → RED → откат → GREEN | ПАМЯТКА v6 | mutation-report запись |
+| M-A5.2 | ~~Мутация: убрать `.get()`~~ → **SURVIVED 27.11** → см. M-A5.2a | mutation-report 27.11 | — |
+| M-A5.2a | **GAP из M-A5.2 SURVIVED:** нет теста на `kafkaTemplate.send()` → `failedFuture(...)`. Без `.get()` исключение не вылетает → событие останется SENT вместо FAILED. Сначала тест (RED без фикса), потом retest M-A5.2 | mutation-report 27.11 | тест RED до фикса, GREEN после, M-A5.2 KILLED |
 
 ## P1 — до M7
 
