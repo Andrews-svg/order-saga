@@ -9,7 +9,7 @@ public abstract class AbstractKafkaIntegrationTest extends AbstractIntegrationTe
     @ServiceConnection
     public static final KafkaContainer KAFKA =
             new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.1"))
-                    .withImagePullPolicy(image -> false);
+                    .withImagePullPolicy(image -> System.getenv("CI") != null);
 
     static {
         KAFKA.start();

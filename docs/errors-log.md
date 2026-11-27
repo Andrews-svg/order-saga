@@ -62,3 +62,6 @@
 | Дата | Ситуация | Урок |
 |---|---|---|
 | 25.11.2026 | ПАМЯТКА v6 приписала коммиту f67f3f1 «4 урока 25.11», реально — 4 урока 24.11 (Kafka/Testcontainers). 4 урока 25.11 в репо отсутствуют | ПАМЯТКА сверяется с репо (`git show <hash> -- <file>`) перед записью. Память чата ≠ факт репо |
+
+| 27.11.2026 | CI #48 (c43962b, A5.3) красный: `ContainerLaunchException` → `NotFoundException` в `GenericContainer.java:556`, `ExceptionInInitializerError` в `AbstractKafkaIntegrationTest`. 34 теста, 1 failed (только Kafka) | `withImagePullPolicy(image -> false)` в CI рубит pull: образа `cp-kafka:7.6.1` нет в кэше раннера → Docker 404. Локально `false` спасал от resolve-таймаута (Docker 29), в CI — топит. Решение: `image -> System.getenv("CI") != null` (CI: pull, локально: never). `systemProperty("testcontainers.image.pull","never")` в `tasks.test` — ложный рычаг, не работал (Postgres поднимался без явного pull), удалён. Проверка до push: `docker image rm` + `$env:CI='true'` + прогон |
+| 27.11.2026 | Локальный `BUILD SUCCESSFUL` после A5.1 → push → CI #49/#50/#51 красные. Шаг объявлен закрытым преждевременно | Локальный GREEN ≠ CI GREEN. Проверка Actions после push — часть ритуала сверки, не опция. Шаг не закрыт по 4×4, пока CI не зелёный (ТЗ 4.8) |

@@ -17,6 +17,5 @@ dependencies {
 }
 tasks.test {
     systemProperty("testcontainers.pull.timeout", "600")
-    systemProperty("testcontainers.image.pull", "never")
     useJUnitPlatform()
 }
