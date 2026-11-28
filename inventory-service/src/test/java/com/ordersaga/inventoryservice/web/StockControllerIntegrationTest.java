@@ -115,6 +115,17 @@ class StockControllerIntegrationTest extends AbstractIntegrationTest {
         ResponseEntity<String> response = rest.postForEntity(
                 "/inventory/reserve", new ReserveRequest(id, 0), String.class);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getStatusCode()).as("body=" + response.getBody()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void reserve_malformedJson_returns400() {
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+        org.springframework.http.HttpEntity<String> request =
+                new org.springframework.http.HttpEntity<>("{broken", headers);
+        ResponseEntity<String> response = rest.exchange(
+                "/inventory/reserve", HttpMethod.POST, request, String.class);
+        assertThat(response.getStatusCode()).as("body=" + response.getBody()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 }

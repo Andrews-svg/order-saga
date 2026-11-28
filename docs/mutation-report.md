@@ -75,3 +75,8 @@
 | M-A5.3 | `OutboxRelay.publishOne`: `event.setStatus(STATUS_FAILED);` убран (заменён комментарием `/* M-A5.3 */`) | `OutboxRelay.java:50` | **Unit 2 RED:** `marksFailedAndContinues_whenSendThrows`:75 (AssertionFailedError — PENDING вместо FAILED), `marksFailed_whenSendFutureFails`:90 (то же). **GREEN:** `sendsToKafkaAndMarksSent`, `noop_whenNoPending` — точечность | KILLED (2/4) |
 
 **Итог A5 (на 28.11):** 3 мутации — M-A5.1 KILLED (3 RED), M-A5.2 SURVIVED → тест M-A5.2a → KILLED (retest, 1 RED), M-A5.3 KILLED (2 RED). Все три доказаны фактом.
+## GAP-400 — malformed JSON
+
+| # | Мутация | Файл:строка | Поймали тесты | Статус |
+|---|---|---|---|---|
+| M-GAP-400 | `handleMalformedJson` убран (`@ExceptionHandler(HttpMessageNotReadableException.class)`) | `GlobalExceptionHandler.java:69` | `StockControllerIntegrationTest.reserve_malformedJson_returns400`:129 (500 вместо 400). 7 остальных GREEN | KILLED (1/8) |

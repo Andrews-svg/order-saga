@@ -26,7 +26,6 @@
 | @TestPropertySource | 3 Spring context (HikariPool-1/2/3, факт 26.11). Убрать `@TestPropertySource` в `OutboxRelayKafkaIntegrationTest` | errors-log 22.11 |
 | Outbox PENDING assert | `reserve_createsPendingOutboxEvent` ассертит `PENDING` — race-уязвим. → «PENDING или SENT» | mutation-report A5 |
 | README fence | Незакрытый fence в разделе Architecture | README |
-| 400 malformed JSON | `handleGeneric` → 500. Должно быть 400 (`HttpMessageNotReadableException`) | ТЗ 7.4 |
 | 404 ErrorResponse body | `getById_notFound_returns404` проверяет статус, не тело | mutation-report M1 |
 | @ConditionalOnProperty (B) | Заменить test-profile на `@ConditionalOnProperty(name="outbox.relay.enabled")` | decisions-log 25.11 |
 
@@ -47,4 +46,5 @@
 | M-A5.2a | Тест `marksFailed_whenSendFutureFails` (async failedFuture) — ловит отсутствие `.get()` | 28.11.2026 | RED подтверждён, GREEN после отката |
 | M-A5.2 | Мутация `.get()` → KILLED (retest) | 28.11.2026 | mutation-report 28.11 |
 | M-A5.3 | Мутация FAILED-ветки → KILLED (2 RED) | 28.11.2026 | mutation-report 28.11 |
+| GAP-400 | `HttpMessageNotReadableException` → 400 + тест | 28.11.2026 | M-GAP-400 KILLED |
 
