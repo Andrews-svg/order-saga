@@ -23,7 +23,6 @@
 
 | # | GAP | Источник |
 |---|---|---|
-| M-A5.3 | Мутация: убрать FAILED-ветку в `publishOne` → RED | ПАМЯТКА v6 |
 | @TestPropertySource | 3 Spring context (HikariPool-1/2/3, факт 26.11). Убрать `@TestPropertySource` в `OutboxRelayKafkaIntegrationTest` | errors-log 22.11 |
 | Outbox PENDING assert | `reserve_createsPendingOutboxEvent` ассертит `PENDING` — race-уязвим. → «PENDING или SENT» | mutation-report A5 |
 | README fence | Незакрытый fence в разделе Architecture | README |
@@ -47,4 +46,5 @@
 | CI #48 | Kafka Testcontainers `withImagePullPolicy(false)` в CI → Docker 404 | 27.11.2026 | коммит `9a318f2`, CI #52 зелёный |
 | M-A5.2a | Тест `marksFailed_whenSendFutureFails` (async failedFuture) — ловит отсутствие `.get()` | 28.11.2026 | RED подтверждён, GREEN после отката |
 | M-A5.2 | Мутация `.get()` → KILLED (retest) | 28.11.2026 | mutation-report 28.11 |
+| M-A5.3 | Мутация FAILED-ветки → KILLED (2 RED) | 28.11.2026 | mutation-report 28.11 |
 
