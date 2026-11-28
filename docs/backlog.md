@@ -17,8 +17,7 @@
 | A1-refactor | Привести `inventory-service` к ТЗ 5.4: `inventory`/`available_qty`/`reserved_qty` вместо `stock`/`total_quantity`/`reserved_quantity`. Flyway V1, entity, repository, service, 34 теста, README | decisions-log 27.11 | код + тесты GREEN + CI |
 | A3.4 | Race idempotency: два параллельных запроса с одним `Idempotency-Key`. `@Transactional(REQUIRES_NEW)` re-read + `CountDownLatch` + `Awaitility` | mutation-report M-A3.3 SURVIVED | тест RED до фикса, GREEN после |
 | A4.4 | Атомарность relay: два PENDING, второе падает на `save` → первое тоже откатывается (PENDING) | mutation-report A4-M3 SURVIVED | тест RED до фикса, GREEN после |
-| M-A5.2 | ~~Мутация: убрать `.get()`~~ → **SURVIVED 27.11** → см. M-A5.2a | mutation-report 27.11 | — |
-| M-A5.2a | **GAP из M-A5.2 SURVIVED:** нет теста на `kafkaTemplate.send()` → `failedFuture(...)`. Без `.get()` исключение не вылетает → событие останется SENT вместо FAILED. Сначала тест (RED без фикса), потом retest M-A5.2 | mutation-report 27.11 | тест RED до фикса, GREEN после, M-A5.2 KILLED |
+
 
 ## P1 — до M7
 
@@ -46,4 +45,6 @@
 | errors-log 25.11 | 4 урока 25.11 + мета-урок ПАМЯТКА vs репо | 26.11.2026 | коммит `3415b25` |
 | M-A5.1 | Мутация `send` → 3 RED → откат → GREEN | 26.11.2026 | коммит `3415b25` |
 | CI #48 | Kafka Testcontainers `withImagePullPolicy(false)` в CI → Docker 404 | 27.11.2026 | коммит `9a318f2`, CI #52 зелёный |
-| M-A5.2a-next | 27.11 вечер: тест `publishPending_marksFailed_whenSendFutureFails` написан, но вставка дала дубль `@Test` → compile RED, файл откачен. Завтра: вставить заново (заменить `@Test` + `void publishPending_noop...` целиком, не добавлять перед), прогнать GREEN 4 теста, мутация `.get()` → RED, откат → GREEN, retest M-A5.2 KILLED, запись в mutation-report + backlog «Закрыто», коммит, push, CI | backlog 27.11 | M-A5.2 KILLED в mutation-report |
+| M-A5.2a | Тест `marksFailed_whenSendFutureFails` (async failedFuture) — ловит отсутствие `.get()` | 28.11.2026 | RED подтверждён, GREEN после отката |
+| M-A5.2 | Мутация `.get()` → KILLED (retest) | 28.11.2026 | mutation-report 28.11 |
+

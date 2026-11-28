@@ -77,6 +77,20 @@ class OutboxRelayUnitTest {
     }
 
     @Test
+    void publishPending_marksFailed_whenSendFutureFails() {
+        OutboxEvent event = pending("inventory.reserved", UUID.randomUUID(), "{\"x\":1}");
+        when(repository.findByStatusOrderByCreatedAtAsc(OutboxRelay.STATUS_PENDING))
+                .thenReturn(List.of(event));
+        CompletableFuture<SendResult<String, String>> failed = new CompletableFuture<>();
+        failed.completeExceptionally(new RuntimeException("kafka async down"));
+        when(kafkaTemplate.send(anyString(), anyString(), anyString())).thenReturn(failed);
+
+        relay.publishPending();
+
+        assertThat(event.getStatus()).isEqualTo(OutboxRelay.STATUS_FAILED);
+    }
+
+    @Test
     void publishPending_noop_whenNoPending() {
         when(repository.findByStatusOrderByCreatedAtAsc(OutboxRelay.STATUS_PENDING))
                 .thenReturn(List.of());

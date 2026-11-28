@@ -69,3 +69,5 @@
 **Итог A5 (на 26.11):** 1 мутация — KILLED. M-A5.2/M-A5.3 — ⬜.
 
 | M-A5.2 | `OutboxRelay.publishOne`: `.get(SEND_TIMEOUT_SECONDS, TimeUnit.SECONDS)` убран | `OutboxRelay.java:43` | **0 RED — SURVIVED.** `publishPending_sendsToKafkaAndMarksSent` — mock возвращает completedFuture(null), статус SENT и без `.get()`. `publishPending_marksFailedAndContinues_whenSendThrows` — синхронный `thenThrow`, ловится `catch(Exception)` без `.get()`. **GAP:** нет теста на async-failedFuture (Kafka падает внутри CompletableFuture → без `.get()` исключение не вылетает → событие останется SENT вместо FAILED) | SURVIVED → GAP M-A5.2a |
+
+**Retest M-A5.2 (после M-A5.2a):** тест `publishPending_marksFailed_whenSendFutureFails` добавлен (async failedFuture → событие должно быть FAILED). Мутация `.get(...)` убрана → **RED** на строке 90 (AssertionFailedError: SENT вместо FAILED), 3 остальных GREEN → точечность. Откат → GREEN 4/4. **M-A5.2 = KILLED (retest).**
