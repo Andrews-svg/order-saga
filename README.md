@@ -75,14 +75,14 @@ Backend-ядро обработки заказов интернет-магази
 - Мутация: 10/10 KILLED (mutation score 100%), 2 gap найдено и закрыто retest'ом — [docs/mutation-report.md](docs/mutation-report.md)
 - CI: GitHub Actions, build + test зелёный
 
-**M2 — inventory-service: in progress (A1–A5.4 done).**
-- Flyway V1–V3: stock, idempotency_keys, outbox
-- REST: /inventory/stock (set/get), /inventory/reserves (reserve/release) + idempotency (SHA-256 payload hash)
+**M2 — inventory-service: closed (28.11.2026).**
+- Flyway V1–V3: `stock`, `idempotency_keys`, `outbox`
+- REST: `/inventory/stock` (set/get), `/inventory/reserves` (reserve/release) + idempotency (SHA-256 payload hash)
 - Outbox + relay -> Kafka (at-least-once)
-- 34 теста, 10 suites: unit + Testcontainers PostgreSQL + Testcontainers Kafka
-- Мутации A3/A4/A5.1: 6 KILLED, 2 SURVIVED -> GAP A3.4 / A4.4 ([backlog P0](docs/backlog.md))
-- CI: GitHub Actions, build + test зелёный (после фикса #48 — Kafka pull policy conditional on CI)
-- Открыто: M-A5.2, M-A5.3 (мутации) -> потом M2 closed
+- **35 тестов, 10 suites:** unit + Testcontainers PostgreSQL + Testcontainers Kafka
+- Мутации A5: M-A5.1 KILLED (3 RED), M-A5.2 SURVIVED -> тест M-A5.2a -> KILLED (retest), M-A5.3 KILLED (2 RED) — [docs/mutation-report.md](docs/mutation-report.md)
+- Мутации A3/A4: 5 KILLED, 2 SURVIVED -> GAP A3.4 / A4.4 ([backlog P0](docs/backlog.md))
+- CI: GitHub Actions, build + test зелёный
 
 ## Documentation
 

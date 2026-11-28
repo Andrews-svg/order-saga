@@ -51,3 +51,15 @@
 | Дата | Решение | Альтернативы | Почему |
 |---|---|---|---|
 | 27.11.2026 | Привести код `inventory-service` к ТЗ 5.4: таблица `inventory`, поля `available_qty` + `reserved_qty` (вместо текущего `stock` с `total_quantity` + `reserved_quantity`). Действие — в backlog `A1-refactor`, до M3 | Оставить код (`stock`/`total_quantity`), обновить ТЗ | Модель `available_qty` прямее для OMS: резерв = `UPDATE ... WHERE available_qty >= :qty` — одна колонка в условии. Инвариант в БД проще: `CHECK (available_qty >= 0)`. ТЗ — авторское решение, код отклонился без записи — это GAP |
+
+## M2 closed — inventory-service (28.11.2026)
+
+**Факт:** M2 закрыт по 4×4 (ТЗ 4.8). Все шаги A1–A5 + A6 выполнены фактом.
+
+- **Тесты:** 35 тестов, 10 suites (unit + Testcontainers PostgreSQL + Testcontainers Kafka). GREEN локально и в CI.
+- **Мутации A5:** M-A5.1 KILLED (3 RED), M-A5.2 SURVIVED → тест `marksFailed_whenSendFutureFails` (async failedFuture) → KILLED (retest, 1 RED), M-A5.3 KILLED (2 RED). Все три доказаны.
+- **Мутации A3/A4:** 5 KILLED, 2 SURVIVED → GAP A3.4 (race idempotency) / A4.4 (атомарность relay) — [backlog P0](backlog.md).
+- **CI:** #52–#59 зелёные после фикса #48 (Kafka pull policy `System.getenv("CI") != null`). Коммит `9a318f2`.
+- **README:** M2 «in progress» → «closed (28.11.2026)», 35 тестов, мутации A5.
+
+**Открытые хвосты M2 (в backlog P0, до M3):** A1-refactor (ТЗ 5.4: `inventory`/`available_qty`), A3.4, A4.4.
